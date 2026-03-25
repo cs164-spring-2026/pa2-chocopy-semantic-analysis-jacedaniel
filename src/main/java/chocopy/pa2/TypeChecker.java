@@ -4,15 +4,7 @@ import chocopy.common.analysis.AbstractNodeAnalyzer;
 import chocopy.common.analysis.SymbolTable;
 import chocopy.common.analysis.types.Type;
 import chocopy.common.analysis.types.ValueType;
-import chocopy.common.astnodes.BinaryExpr;
-import chocopy.common.astnodes.Declaration;
-import chocopy.common.astnodes.Errors;
-import chocopy.common.astnodes.ExprStmt;
-import chocopy.common.astnodes.Identifier;
-import chocopy.common.astnodes.IntegerLiteral;
-import chocopy.common.astnodes.Node;
-import chocopy.common.astnodes.Program;
-import chocopy.common.astnodes.Stmt;
+import chocopy.common.astnodes.*;
 
 import static chocopy.common.analysis.types.Type.INT_TYPE;
 import static chocopy.common.analysis.types.Type.OBJECT_TYPE;
@@ -59,10 +51,17 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return null;
     }
 
+    // Literals
     @Override
     public Type analyze(IntegerLiteral i) {
         return i.setInferredType(Type.INT_TYPE);
     }
+    @Override
+    public Type analyze (BooleanLiteral b) { return b.setInferredType(Type.BOOL_TYPE); }
+    @Override
+    public Type analyze (StringLiteral s) { return s.setInferredType(Type.STR_TYPE); }
+    @Override
+    public Type analyze (NoneLiteral n) { return n.setInferredType(Type.NONE_TYPE); }
 
     @Override
     public Type analyze(BinaryExpr e) {
