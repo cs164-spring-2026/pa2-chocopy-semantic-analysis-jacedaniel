@@ -2,13 +2,13 @@ package chocopy.pa2;
 
 import chocopy.common.analysis.AbstractNodeAnalyzer;
 import chocopy.common.analysis.SymbolTable;
+import chocopy.common.analysis.types.FuncType;
+import chocopy.common.analysis.types.ClassValueType;
 import chocopy.common.analysis.types.Type;
 import chocopy.common.analysis.types.ValueType;
-import chocopy.common.astnodes.Declaration;
-import chocopy.common.astnodes.Errors;
-import chocopy.common.astnodes.Identifier;
-import chocopy.common.astnodes.Program;
-import chocopy.common.astnodes.VarDef;
+import chocopy.common.astnodes.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Analyzes declarations to create a top-level symbol table.
@@ -62,5 +62,19 @@ public class DeclarationAnalyzer extends AbstractNodeAnalyzer<Type> {
         return ValueType.annotationToValueType(varDef.var.type);
     }
 
+    @Override
+    public Type analyze(FuncDef funcDef) {
+        List<ValueType> paramTypes = new ArrayList<>();
+        for (TypedVar param : funcDef.params) {
+            paramTypes.add(ValueType.annotationToValueType(param.type));
+        }
+        ValueType returnType = ValueType.annotationToValueType(funcDef.returnType);
+        return new FuncType(paramTypes, returnType);
+    }
+
+    @Override
+    public Type analyze(ClassDef classDef) {
+        return new ClassValueType(classDef.name.name);
+    }
 
 }
