@@ -56,6 +56,44 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return Type.OBJECT_TYPE;
     }
 
+    // Checks if t1 is a subclass of t2
+    private boolean isSubclass(Type t1, Type t2) {
+        if (t1.equals(t2)) {
+            return true;
+        }
+
+        if (t1 instanceof ListValueType && t2.equals(OBJECT_TYPE)) {
+            return true;
+        }
+
+        String className1 = t1.className();
+        String className2 = t2.className();
+        while (className1 != null) {
+            if (className1.equals(className2)) return true;
+            className1 = classTree.get(className1);
+        }
+        return false;
+    }
+
+    // t1 <=_a t2 operator
+    private boolean leqA (Type t1, Type t2) {
+        // t1 <= t2
+        if (isSubclass(t1, t2)) return true;
+        // t1 is None, t2 is not int, str, or bool
+        if (t1.equals(NONE_TYPE) && (!t2.isSpecialType())) return true;
+        // t1 is Empty, t2 is [T]
+        if (t1.equals(EMPTY_TYPE) && t2 instanceof ListValueType) return true;
+        // t1 is [None], t2 is [T], None <=_a T
+        if (t1 instanceof ListValueType && t2 instanceof ListValueType) {
+            ListValueType lvt1 = (ListValueType) t1;
+            ListValueType lvt2 = (ListValueType) t2;
+            if (lvt1.elementType.equals(NONE_TYPE) && leqA(NONE_TYPE, lvt2.elementType)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * Inserts an error message in NODE if there isn't one already.
      * The message is constructed with MESSAGE and ARGS as for
@@ -80,7 +118,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
 
     @Override
     public Type analyze(ExprStmt s) {
-        Type t = s.expr.dispatch(this);
+        s.expr.dispatch(this);
         return null;
     }
 
@@ -111,10 +149,10 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
             err(s, "Invalid condition");
         }
         for (Stmt e: s.thenBody){
-            Type t = e.dispatch(this);
+            e.dispatch(this);
         }
         for (Stmt e: s.elseBody){
-            Type t = e.dispatch(this);
+            e.dispatch(this);
         }
         //todo, typechecking conditions
         return null;
@@ -191,6 +229,18 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     return null;
    }
 
+    // [LIST-LITERAL]
+    @Override
+    public Type analyze(ListExpr e) {
+        if (e.elements.isEmpty()) return e.setInferredType(EMPTY_TYPE);
+
+        Type type = null;
+        for (Expr expr : e.elements) {
+            Type nextType = expr.dispatch(this);
+            type = type == null ? nextType : leastUpperBound(type, nextType);
+        }
+        return e.setInferredType(new ListValueType(type));
+    }
 
 
 
@@ -321,10 +371,5 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return c.setInferredType(name_type);
     
     }**/
-
-
-
-
-
 
 }

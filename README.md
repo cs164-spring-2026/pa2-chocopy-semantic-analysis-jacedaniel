@@ -68,8 +68,15 @@ To sync with updates upstream:
 
 ## Submission writeup
 
-Team member 1: 
+Team member 1: Daniel Liu
 
 Team member 2: 
 
 (Students should edit this section with their write-up)
+
+## Useful Commands
+
+Output the current semantic analysis from a python file
+```
+java -cp "chocopy-ref.jar:target/assignment.jar" chocopy.ChocoPy --pass=rs src/test/data/pa2/sample/<file>.py 
+```
