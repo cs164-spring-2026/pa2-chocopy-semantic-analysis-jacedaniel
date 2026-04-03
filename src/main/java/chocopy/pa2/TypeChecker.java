@@ -78,7 +78,6 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
 
     //Statements Stmt > If, While, For Expr, Return, Assign
 
-
     @Override
     public Type analyze(ExprStmt s) {
         Type t = s.expr.dispatch(this);
@@ -87,27 +86,29 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
 
     @Override
     public Type analyze(AssignStmt s){
+        Type right = s.value.dispatch(this);
         for (Expr e: s.targets){
-            Type t = e.dispatch(this);
+            Type left = e.dispatch(this);
+            if(!left.equals(right)){
+                err(s, "Type mismatch");
+            }
         }
-        s.value.dispatch(this);
         return null;
     }
 
     @Override
     public Type analyze(ReturnStmt s){
-        if(s.value == null){
-            return null;
+        if(s.value != null){
+            Type t = s.value.dispatch(this);
         }
-        Type t = s.value.dispatch(this);
         return null;
     }
 
     @Override 
     public Type analyze(IfStmt s){
         Type cond = s.condition.dispatch(this);
-        if(!BOOL_TYPE.equals(cond))
-            err(s, "Invalid condition")
+        if(!BOOL_TYPE.equals(cond)){
+            err(s, "Invalid condition");
         }
         for (Stmt e: s.thenBody){
             Type t = e.dispatch(this);
@@ -121,7 +122,10 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
 
     @Override
     public Type analyze(WhileStmt s) {
-        s.condition.dispatch(this);
+        Type t = s.condition.dispatch(this);
+        if(!BOOL_TYPE.equals(t)){
+            err(s, "Invalid Condition in while statement");
+        }
         for (Stmt i : s.body){
             i.dispatch(this);
         }
@@ -173,18 +177,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return id.setInferredType(ValueType.OBJECT_TYPE);
     }
 
-    //Not sure how to do this one.
-    /**@Override
-    public Type analyze(CallExpr f){
-        Identifier nameType = f.function;
-        Type args = f.args.dispatch(this); //I think this is the correct way to handle typechecking a list.
-        
-        if(nameType != None && args.isListType()){
-            return f.setInferredType(CallExpr);
-        }
-        err(f, "Not a CallExpr");
-        return f.setInferredType(ValueType.OBJECT_TYPE); //not sure if this is correct.
-    }**/
+
 
     // [VAR-ASSIGN]
     @Override
@@ -290,6 +283,19 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
                 return e.setInferredType(OBJECT_TYPE);
         }
     }
+
+    //Not sure how to do this one.
+    /**@Override
+    public Type analyze(CallExpr f){
+        Identifier nameType = f.function;
+        Type args = f.args.dispatch(this); //I think this is the correct way to handle typechecking a list.
+        
+        if(nameType != None && args.isListType()){
+            return f.setInferredType(CallExpr);
+        }
+        err(f, "Not a CallExpr");
+        return f.setInferredType(ValueType.OBJECT_TYPE); //not sure if this is correct.
+    }**/
 
     @Override 
     public Type analyze(IfExpr e){
