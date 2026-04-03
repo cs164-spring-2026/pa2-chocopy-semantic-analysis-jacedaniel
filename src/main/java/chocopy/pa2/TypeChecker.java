@@ -2,10 +2,15 @@ package chocopy.pa2;
 
 import chocopy.common.analysis.AbstractNodeAnalyzer;
 import chocopy.common.analysis.SymbolTable;
+import chocopy.common.analysis.types.ClassValueType;
 import chocopy.common.analysis.types.ListValueType;
 import chocopy.common.analysis.types.Type;
 import chocopy.common.analysis.types.ValueType;
 import chocopy.common.astnodes.*;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import static chocopy.common.analysis.types.Type.*;
 
@@ -22,14 +27,33 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     private SymbolTable<Type> sym;
     /** Collector for errors. */
     private Errors errors;
+    private HashMap<String, String> classTree;
 
     /**
      * Creates a type checker using GLOBALSYMBOLS for the initial global
      * symbol table and ERRORS0 to receive semantic errors.
      */
-    public TypeChecker(SymbolTable<Type> globalSymbols, Errors errors0) {
+    public TypeChecker(SymbolTable<Type> globalSymbols, HashMap<String, String> classTree0, Errors errors0) {
         sym = globalSymbols;
         errors = errors0;
+        classTree = classTree0;
+    }
+
+    private Type leastUpperBound(Type t1, Type t2) {
+        Set<String> seen = new HashSet<>();
+        // Traverse through parent of t1 until "object" and store in seen
+        String className1 = t1.className();
+        String className2 = t2.className();
+        while (className1 != null) {
+            seen.add(className1);
+            className1 = classTree.get(className1);
+        }
+        while (className2 != null) {
+            if (seen.contains(className2)) return new ClassValueType(className2);
+            className2 = classTree.get(className2);
+        }
+        // Fallback to object.
+        return Type.OBJECT_TYPE;
     }
 
     /**
@@ -79,7 +103,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return n.setInferredType(Type.NONE_TYPE);
     }
 
-    // Identifiers
+    // [VAR-READ]
     @Override
     public Type analyze(Identifier id) {
         String varName = id.name;
@@ -106,7 +130,8 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return f.setInferredType(ValueType.OBJECT_TYPE); //not sure if this is correct.
     }**/
 
-   @Override
+    // [VAR-ASSIGN]
+    @Override
    public Type analyze(VarDef d){
     Type t = d.var.dispatch(this);
     Type val = d.value.dispatch(this);
@@ -132,7 +157,12 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
                 if (STR_TYPE.equals(t1) && STR_TYPE.equals(t2)) {
                     return e.setInferredType(STR_TYPE);
                 }
-                // TODO: LCA for List Concatentation
+                if (t1 instanceof ListValueType && t2 instanceof ListValueType) {
+                    ListValueType lvt1 = (ListValueType)t1;
+                    ListValueType lvt2 = (ListValueType)t2;
+                    Type t = leastUpperBound(lvt1.elementType, lvt2.elementType);
+                    return e.setInferredType(new ListValueType(t));
+                }
                 err(e, "Cannot apply operator `%s` on types `%s` and `%s`",
                         e.operator, t1, t2);
                 return e.setInferredType(INT_TYPE);
