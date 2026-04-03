@@ -78,17 +78,28 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     }
 
     //Not sure how to do this one.
-    @Override
+    /**@Override
     public Type analyze(CallExpr f){
-        Type nameType = sym.get(f.function)
-        Type args = f.args.dispatch(this) //I think this is the correct way to handle typechecking a list.
+        Identifier nameType = f.function;
+        Type args = f.args.dispatch(this); //I think this is the correct way to handle typechecking a list.
         
-        if(nameType != null and args.isListType()){
-            return f.setInferredType(CallExpr)
+        if(nameType != None && args.isListType()){
+            return f.setInferredType(CallExpr);
         }
-        err(f, "Not a CallExpr")
-        return f.setInferredType(ValueType.OBJECT_TYPE) //not sure if this is correct.
+        err(f, "Not a CallExpr");
+        return f.setInferredType(ValueType.OBJECT_TYPE); //not sure if this is correct.
+    }**/
+
+   @Override
+   public Type analyze(VarDef d){
+    Type t = d.var.dispatch(this);
+    Type val = d.value.dispatch(this);
+    if(t == val){
+        return null;
     }
+    err(d, "Mismatch type for VarDef.");
+    return null;
+   }
 
 
     // Expressions
@@ -173,15 +184,30 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         }
     }
 
-//Classes
+    @Override 
+    public Type analyze(IfExpr e){
+        Type t1 = e.condition.dispatch(this);
+        Type t2 = e.thenExpr.dispatch(this);
+        Type t3 = e.elseExpr.dispatch(this);
 
-    @Override
-    public Type analyze(ClassType c){
-        String name = c.className
-        Type name_type = sym.get(name)
-        return c.setInferredType(name_type)
-    
+        if(NONE_TYPE.equals(t1)){
+            err(e, "Can't have empty condition in if expr");
+        }
+        else if(NONE_TYPE.equals(t2)){
+            err(e, "Can't have empty then expression");
+        }
+        return null;
+
     }
+
+//Classes
+    /**@Override
+    public Type analyze(ClassType c){
+        String name = c.className;
+        
+        return c.setInferredType(name_type);
+    
+    }**/
 
 
 
