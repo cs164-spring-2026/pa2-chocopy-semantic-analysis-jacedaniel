@@ -222,7 +222,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
    public Type analyze(VarDef d){
     Type t = d.var.dispatch(this);
     Type val = d.value.dispatch(this);
-    if(t == val){
+    if((t != null) && isSubclass(val, t)){
         return null;
     }
     err(d, "Mismatch type for VarDef.");

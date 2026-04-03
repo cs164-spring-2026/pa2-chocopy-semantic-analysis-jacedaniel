@@ -79,4 +79,6 @@ Team member 2:
 Output the current semantic analysis from a python file
 ```
 java -cp "chocopy-ref.jar:target/assignment.jar" chocopy.ChocoPy --pass=rs src/test/data/pa2/sample/<file>.py 
+Windows:
+java -cp "chocopy-ref.jar;target/assignment.jar" chocopy.ChocoPy --pass=rs src/test/data/pa2/sample/<file>.py 
 ```
