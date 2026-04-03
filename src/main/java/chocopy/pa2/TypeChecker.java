@@ -52,10 +52,66 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return null;
     }
 
+    //Statements Stmt > If, While, For Expr, Return, Assign
+
+
     @Override
     public Type analyze(ExprStmt s) {
-        s.expr.dispatch(this);
+        Type t = s.expr.dispatch(this);
         return null;
+    }
+
+    @Override
+    public Type analyze(AssignStmt s){
+        for (Expr e: s.targets){
+            Type t = e.dispatch(this);
+        }
+        s.value.dispatch(this);
+        return null;
+    }
+
+    @Override
+    public Type analyze(ReturnStmt s){
+        if(s.value == null){
+            return null;
+        }
+        Type t = s.value.dispatch(this);
+        return null;
+    }
+
+    @Override 
+    public Type analyze(IfStmt s){
+        Type cond = s.condition.dispatch(this);
+        if(!BOOL_TYPE.equals(cond))
+            err(s, "Invalid condition")
+        }
+        for (Stmt e: s.thenBody){
+            Type t = e.dispatch(this);
+        }
+        for (Stmt e: s.elseBody){
+            Type t = e.dispatch(this);
+        }
+        //todo, typechecking conditions
+        return null;
+    }
+
+    @Override
+    public Type analyze(WhileStmt s) {
+        s.condition.dispatch(this);
+        for (Stmt i : s.body){
+            i.dispatch(this);
+        }
+        //todo typechecking
+        return null;
+    }
+
+    @Override
+    public Type analyze (ForStmt s){
+        //get identifier for s.identifier
+        s.iterable.dispatch(this);
+        //handle list for s.body
+        return null;
+
     }
 
     // Literals
@@ -116,6 +172,9 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     err(d, "Mismatch type for VarDef.");
     return null;
    }
+
+
+
 
 
     // Expressions
