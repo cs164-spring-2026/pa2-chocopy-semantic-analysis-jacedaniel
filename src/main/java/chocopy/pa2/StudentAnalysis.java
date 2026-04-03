@@ -4,6 +4,8 @@ import chocopy.common.analysis.SymbolTable;
 import chocopy.common.analysis.types.Type;
 import chocopy.common.astnodes.Program;
 
+import java.util.HashMap;
+
 /** Top-level class for performing semantic analysis. */
 public class StudentAnalysis {
 
@@ -20,9 +22,10 @@ public class StudentAnalysis {
         DeclarationAnalyzer declarationAnalyzer = new DeclarationAnalyzer(program.errors);
         program.dispatch(declarationAnalyzer);
         SymbolTable<Type> globalSym = declarationAnalyzer.getGlobals();
+        HashMap<String, String> classTree = declarationAnalyzer.getClassTree();
 
         if (!program.hasErrors()) {
-            TypeChecker typeChecker = new TypeChecker(globalSym, program.errors);
+            TypeChecker typeChecker = new TypeChecker(globalSym, classTree, program.errors);
             program.dispatch(typeChecker);
         }
 

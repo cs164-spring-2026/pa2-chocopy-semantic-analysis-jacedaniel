@@ -25,6 +25,8 @@ public class DeclarationAnalyzer extends AbstractNodeAnalyzer<Type> {
     private final SymbolTable<Type> globals = sym;
     /** Receiver for semantic error messages. */
     private final Errors errors;
+    // Maps classNames to superClassNames
+    private HashMap<String, String> classTree = new HashMap<String, String>();
 
     /** A new declaration analyzer sending errors to ERRORS0. */
     public DeclarationAnalyzer(Errors errors0) {
@@ -33,11 +35,17 @@ public class DeclarationAnalyzer extends AbstractNodeAnalyzer<Type> {
         sym.put("int", Type.INT_TYPE);
         sym.put("bool", Type.BOOL_TYPE);
         sym.put("str", Type.STR_TYPE);
+
+        classTree.put("object", null);
+        classTree.put("int", "object");
+        classTree.put("bool", "object");
+        classTree.put("str", "object");
     }
 
     public SymbolTable<Type> getGlobals() {
         return globals;
     }
+    public HashMap<String, String> getClassTree() { return classTree; }
 
     @Override
     public Type analyze(Program program) {
@@ -115,6 +123,7 @@ public class DeclarationAnalyzer extends AbstractNodeAnalyzer<Type> {
         // Place class declarations into symbol table.
         declareDeclarations(classDef.declarations);
         sym = parent;
+        classTree.put(className, superClassName);
         return new ClassValueType(className);
     }
 
