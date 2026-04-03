@@ -25,7 +25,9 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
      * being analyzed).
      */
     private SymbolTable<Type> sym;
-    /** Collector for errors. */
+    /**
+     * Collector for errors.
+     */
     private Errors errors;
     private HashMap<String, String> classTree;
 
@@ -40,6 +42,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     }
 
     private Type leastUpperBound(Type t1, Type t2) {
+        if (t1 == null || t2 == null) return OBJECT_TYPE;
         Set<String> seen = new HashSet<>();
         // Traverse through parent of t1 until "object" and store in seen
         String className1 = t1.className();
@@ -58,6 +61,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
 
     // Checks if t1 is a subclass of t2
     private boolean isSubclass(Type t1, Type t2) {
+        if (t1 == null || t2 == null) return false;
         if (t1.equals(t2)) {
             return true;
         }
@@ -76,7 +80,8 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     }
 
     // t1 <=_a t2 operator
-    private boolean leqA (Type t1, Type t2) {
+    private boolean leqA(Type t1, Type t2) {
+        if (t1 == null || t2 == null) return false;
         // t1 <= t2
         if (isSubclass(t1, t2)) return true;
         // t1 is None, t2 is not int, str, or bool
@@ -123,61 +128,73 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     }
 
     @Override
-    public Type analyze(AssignStmt s){
-        Type right = s.value.dispatch(this);
-        for (Expr e: s.targets){
-            Type left = e.dispatch(this);
-            if(!left.equals(right)){
-                err(s, "Type mismatch");
+    public Type analyze(AssignStmt s) {
+        for (Expr target : s.targets) {
+            target.dispatch(this);
+            // Check if target can be assigned to.
+            if (!(target instanceof Identifier || target instanceof IndexExpr || target instanceof MemberExpr)) {
+                err(target, "Cannot assign to %s", target);
+            }
+        }
+        Type t1 = s.value.dispatch(this);
+        for (Expr target : s.targets) {
+            Type t = target.getInferredType();
+            if (t != null && !leqA(t1, t)) {
+                err(s, "Expected type `%s`; got type `%s`", t1, t);
             }
         }
         return null;
     }
 
     @Override
-    public Type analyze(ReturnStmt s){
-        if(s.value != null){
-            Type t = s.value.dispatch(this);
+    public Type analyze(ReturnStmt s) {
+        if (s.value == null) {
+            return null;
         }
         return null;
     }
 
-    @Override 
-    public Type analyze(IfStmt s){
+    @Override
+    public Type analyze(IfStmt s) {
         Type cond = s.condition.dispatch(this);
-        if(!BOOL_TYPE.equals(cond)){
-            err(s, "Invalid condition");
+        if (!BOOL_TYPE.equals(cond)) {
+            err(s, "Condition expression must be of type bool.");
         }
-        for (Stmt e: s.thenBody){
+        for (Stmt e : s.thenBody) {
             e.dispatch(this);
         }
-        for (Stmt e: s.elseBody){
+        for (Stmt e : s.elseBody) {
             e.dispatch(this);
         }
-        //todo, typechecking conditions
         return null;
     }
 
     @Override
     public Type analyze(WhileStmt s) {
-        Type t = s.condition.dispatch(this);
-        if(!BOOL_TYPE.equals(t)){
-            err(s, "Invalid Condition in while statement");
+        Type cond = s.condition.dispatch(this);
+        if (!BOOL_TYPE.equals(cond)) {
+            err(s, "Condition expression must be of type bool.");
         }
-        for (Stmt i : s.body){
+        for (Stmt i : s.body) {
             i.dispatch(this);
         }
-        //todo typechecking
         return null;
     }
 
     @Override
-    public Type analyze (ForStmt s){
+    public Type analyze(ForStmt s) {
         //get identifier for s.identifier
-        s.iterable.dispatch(this);
-        //handle list for s.body
-        return null;
+        Type t = s.identifier.dispatch(this);
+        Type t1 = s.iterable.dispatch(this);
+        if (!(t1 instanceof ListValueType)) {
+            err(s, "Type %s is not a ListValueType", t1);
+            return null;
+        }
 
+        for (Stmt i : s.body) {
+            i.dispatch(this);
+        }
+        return null;
     }
 
     // Literals
@@ -215,19 +232,17 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return id.setInferredType(ValueType.OBJECT_TYPE);
     }
 
-
-
-    // [VAR-ASSIGN]
+    // [VAR-INIT]
     @Override
-   public Type analyze(VarDef d){
-    Type t = d.var.dispatch(this);
-    Type val = d.value.dispatch(this);
-    if((t != null) && isSubclass(val, t)){
+    public Type analyze(VarDef d) {
+        Type t = ValueType.annotationToValueType(d.var.type);
+        Type t1 = d.value.dispatch(this);
+        if (leqA(t1, t)) {
+            return null;
+        }
+        err(d, "Expected type `%s`; got type `%s`", t, t1);
         return null;
     }
-    err(d, "Mismatch type for VarDef.");
-    return null;
-   }
 
     // [LIST-LITERAL]
     @Override
@@ -241,8 +256,6 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         }
         return e.setInferredType(new ListValueType(type));
     }
-
-
 
 
     // Expressions
@@ -260,21 +273,19 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
                     return e.setInferredType(STR_TYPE);
                 }
                 if (t1 instanceof ListValueType && t2 instanceof ListValueType) {
-                    ListValueType lvt1 = (ListValueType)t1;
-                    ListValueType lvt2 = (ListValueType)t2;
+                    ListValueType lvt1 = (ListValueType) t1;
+                    ListValueType lvt2 = (ListValueType) t2;
                     Type t = leastUpperBound(lvt1.elementType, lvt2.elementType);
                     return e.setInferredType(new ListValueType(t));
                 }
-                err(e, "Cannot apply operator `%s` on types `%s` and `%s`",
-                        e.operator, t1, t2);
+                err(e, "Cannot apply operator `%s` on types `%s` and `%s`", e.operator, t1, t2);
                 return e.setInferredType(INT_TYPE);
             case "-":
             case "*":
             case "//":
             case "%":
                 if (!INT_TYPE.equals(t1) || !INT_TYPE.equals(t2)) {
-                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`",
-                            e.operator, t1, t2);
+                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`", e.operator, t1, t2);
                     return e.setInferredType(INT_TYPE);
                 }
                 return e.setInferredType(INT_TYPE);
@@ -283,30 +294,24 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
             case ">=":
             case ">":
                 if (!INT_TYPE.equals(t1) || !INT_TYPE.equals(t2)) {
-                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`",
-                            e.operator, t1, t2);
+                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`", e.operator, t1, t2);
                 }
                 return e.setInferredType(BOOL_TYPE);
             case "==":
             case "!=":
-                if ((!INT_TYPE.equals(t1) || !INT_TYPE.equals(t2)) && (!BOOL_TYPE.equals(t1) || !BOOL_TYPE.equals(t2))
-                        && (!STR_TYPE.equals(t1) || !STR_TYPE.equals(t2))) {
-                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`",
-                            e.operator, t1, t2);
+                if ((!INT_TYPE.equals(t1) || !INT_TYPE.equals(t2)) && (!BOOL_TYPE.equals(t1) || !BOOL_TYPE.equals(t2)) && (!STR_TYPE.equals(t1) || !STR_TYPE.equals(t2))) {
+                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`", e.operator, t1, t2);
                 }
                 return e.setInferredType(BOOL_TYPE);
             case "and":
             case "or":
                 if (!BOOL_TYPE.equals(t1) || !BOOL_TYPE.equals(t2)) {
-                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`",
-                            e.operator, t1, t2);
+                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`", e.operator, t1, t2);
                 }
                 return e.setInferredType(BOOL_TYPE);
             case "is":
-                if (INT_TYPE.equals(t1) || INT_TYPE.equals(t2) || BOOL_TYPE.equals(t1) || BOOL_TYPE.equals(t2)
-                        || STR_TYPE.equals(t1) || STR_TYPE.equals(t2)) {
-                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`",
-                            e.operator, t1, t2);
+                if (INT_TYPE.equals(t1) || INT_TYPE.equals(t2) || BOOL_TYPE.equals(t1) || BOOL_TYPE.equals(t2) || STR_TYPE.equals(t1) || STR_TYPE.equals(t2)) {
+                    err(e, "Cannot apply operator `%s` on types `%s` and `%s`", e.operator, t1, t2);
                 }
                 return e.setInferredType(BOOL_TYPE);
             default:
@@ -347,29 +352,25 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return f.setInferredType(ValueType.OBJECT_TYPE); //not sure if this is correct.
     }**/
 
-    @Override 
-    public Type analyze(IfExpr e){
+    @Override
+    public Type analyze(IfExpr e) {
         Type t1 = e.condition.dispatch(this);
         Type t2 = e.thenExpr.dispatch(this);
         Type t3 = e.elseExpr.dispatch(this);
 
-        if(NONE_TYPE.equals(t1)){
-            err(e, "Can't have empty condition in if expr");
+        if (BOOL_TYPE.equals(t1)) {
+            err(e, "Condition expression must be of type bool.");
         }
-        else if(NONE_TYPE.equals(t2)){
-            err(e, "Can't have empty then expression");
-        }
-        return null;
+        return e.setInferredType(leastUpperBound(t2, t3));
 
     }
 
 //Classes
-    /**@Override
-    public Type analyze(ClassType c){
-        String name = c.className;
-        
-        return c.setInferredType(name_type);
-    
+    /**@Override public Type analyze(ClassType c){
+    String name = c.className;
+
+    return c.setInferredType(name_type);
+
     }**/
 
 }
