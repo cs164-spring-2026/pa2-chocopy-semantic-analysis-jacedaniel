@@ -51,19 +51,55 @@ public class DeclarationAnalyzer extends AbstractNodeAnalyzer<Type> {
     }
 
     @Override
+    public Type analyze(GlobalDecl globalDecl) {
+        // Only global scopes
+        return globals.get(globalDecl.variable.name);
+    }
+
+    @Override
+    public Type analyze(NonLocalDecl nonLocalDecl) {
+        // Parent frames that are not the global frame
+        String name = nonLocalDecl.variable.name;
+        SymbolTable<Type> curSym = sym.getParent();
+        while (curSym != null && curSym != globals) {
+            if (curSym.declares(name)) {
+                return curSym.get(name);
+            }
+            curSym = curSym.getParent();
+        }
+        return null;
+    }
+
+    @Override
     public Type analyze(FuncDef funcDef) {
         List<ValueType> paramTypes = new ArrayList<>();
         for (TypedVar param : funcDef.params) {
             paramTypes.add(ValueType.annotationToValueType(param.type));
         }
         ValueType returnType = ValueType.annotationToValueType(funcDef.returnType);
-        return new FuncType(paramTypes, returnType);
+        FuncType funcType = new FuncType(paramTypes, returnType);
+        SymbolTable<Type> parent = sym;
+        sym = new SymbolTable<>(parent);
+        // Place function parameters into symbol table.
+        for (TypedVar param : funcDef.params) {
+            String paramName = param.identifier.name;
+            ValueType paramType = ValueType.annotationToValueType(param.type);
+            if (sym.declares(paramName)) {
+                errors.semError(param.identifier, "Duplicate declaration of identifier in same scope: %s", paramName);
+            } else {
+                sym.put(paramName, paramType);
+            }
+        }
+        // Place function declarations into symbol table.
+        declareDeclarations(funcDef.declarations);
+        sym = parent;
+        return funcType;
     }
 
     @Override
     public Type analyze(ClassDef classDef) {
-        String superClassName = classDef.superClass.name;
         String className = classDef.name.name;
+        String superClassName = classDef.superClass.name;
 
         Type superType = sym.get(superClassName);
         if (superType == null) {
@@ -76,6 +112,7 @@ public class DeclarationAnalyzer extends AbstractNodeAnalyzer<Type> {
 
         SymbolTable<Type> parent= sym;
         sym = new SymbolTable<>(parent);
+        // Place class declarations into symbol table.
         declareDeclarations(classDef.declarations);
         sym = parent;
         return new ClassValueType(className);
