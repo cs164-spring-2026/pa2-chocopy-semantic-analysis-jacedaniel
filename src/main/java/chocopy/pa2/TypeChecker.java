@@ -76,6 +76,21 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         err(id, "Not a variable: %s", varName);
         return id.setInferredType(ValueType.OBJECT_TYPE);
     }
+
+    //Not sure how to do this one.
+    @Override
+    public Type analyze(CallExpr f){
+        Type nameType = sym.get(f.function)
+        Type args = f.args.dispatch(this) //I think this is the correct way to handle typechecking a list.
+        
+        if(nameType != null and args.isListType()){
+            return f.setInferredType(CallExpr)
+        }
+        err(f, "Not a CallExpr")
+        return f.setInferredType(ValueType.OBJECT_TYPE) //not sure if this is correct.
+    }
+
+
     // Expressions
     @Override
     public Type analyze(BinaryExpr e) {
@@ -157,4 +172,20 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
             return e.setInferredType(OBJECT_TYPE);
         }
     }
+
+//Classes
+
+    @Override
+    public Type analyze(ClassType c){
+        String name = c.className
+        Type name_type = sym.get(name)
+        return c.setInferredType(name_type)
+    
+    }
+
+
+
+
+
+
 }
