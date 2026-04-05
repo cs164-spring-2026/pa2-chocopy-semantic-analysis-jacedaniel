@@ -140,7 +140,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         for (Expr target : s.targets) {
             Type t = target.getInferredType();
             if (t != null && !leqA(t1, t)) {
-                err(s, "Expected type `%s`; got type `%s`", t1, t);
+                err(s, "Expected type `%s`; got type `%s` in AssignStmt", t1, t);
             }
         }
         return null;
@@ -218,6 +218,23 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         return n.setInferredType(Type.NONE_TYPE);
     }
 
+
+    //Lists
+
+    @Override
+    public Type analyze(ListType l){
+        Type t = l.elementType.dispatch(this);
+        if(t.isListType()){
+            return null;//t.setInferredType(ListValueType);
+        }
+        err(l, "This is not a ListType element?");
+        return null;
+
+    }
+
+
+
+
     // [VAR-READ]
     @Override
     public Type analyze(Identifier id) {
@@ -240,7 +257,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         if (leqA(t1, t)) {
             return null;
         }
-        err(d, "Expected type `%s`; got type `%s`", t, t1);
+        err(d, "Expected type `%s`; got type `%s` in VarDef", t, t1);
         return null;
     }
 
@@ -255,6 +272,26 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
             type = type == null ? nextType : leastUpperBound(type, nextType);
         }
         return e.setInferredType(new ListValueType(type));
+    }
+
+    @Override
+    public Type analyze(IndexExpr e){
+        Type t1 = e.list.dispatch(this);
+        Type t2 = e.index.dispatch(this);
+        if(!INT_TYPE.equals(t2)){
+            err(e, "IndexExpr does not have an integer index value.");
+        }
+        if(t1.isListType()){
+            //ListType t = t1.dispatch(this);
+            //ListType elementt = t.elementType;
+            ListValueType tnew = (ListValueType) t1;
+            return e.setInferredType(tnew.elementType); //todo confirm this. 
+        }
+        if(STR_TYPE.equals(t1)){
+            return e.setInferredType(STR_TYPE);
+        }
+        err(e, "IndexExpr attempting to index nonlist type.");
+        return e.setInferredType(OBJECT_TYPE);
     }
 
 
@@ -339,6 +376,8 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         }
     }
 
+ 
+
     //Not sure how to do this one.
     /**@Override
     public Type analyze(CallExpr f){
@@ -366,11 +405,30 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
     }
 
 //Classes
-    /**@Override public Type analyze(ClassType c){
-    String name = c.className;
 
-    return c.setInferredType(name_type);
+//Todo, add method to check that attributes and methods aren't type confliction with superclass
 
-    }**/
+
+    @Override
+    public Type analyze(ClassDef d){
+        Type t1 = d.name.dispatch(this);
+        Type t2 = d.superClass.dispatch(this);
+        for(Declaration i : d.declarations){
+            Type t = i.dispatch(this);
+        }
+        return null;
+    }
+
+    @Override 
+    public Type analyze(ClassType t){
+        String name = t.className;
+        Type classType = sym.get(name);
+
+        if(classType !=null){
+            err(t, "Bug is in analyze(ClassType).");
+        }
+
+        return null;
+    }
 
 }
