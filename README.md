@@ -70,7 +70,7 @@ To sync with updates upstream:
 
 Team member 1: Daniel Liu
 
-Team member 2: 
+Team member 2: Jace Davidson
 
 (Students should edit this section with their write-up)
 

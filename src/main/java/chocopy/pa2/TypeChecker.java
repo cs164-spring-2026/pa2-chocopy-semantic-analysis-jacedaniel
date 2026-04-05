@@ -358,7 +358,7 @@ public class TypeChecker extends AbstractNodeAnalyzer<Type> {
         Type t2 = e.thenExpr.dispatch(this);
         Type t3 = e.elseExpr.dispatch(this);
 
-        if (BOOL_TYPE.equals(t1)) {
+        if (!BOOL_TYPE.equals(t1)) {
             err(e, "Condition expression must be of type bool.");
         }
         return e.setInferredType(leastUpperBound(t2, t3));
